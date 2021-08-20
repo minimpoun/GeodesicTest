@@ -1,0 +1,9 @@
+.idea/*
+.vs/*
+Binaries/*
+DerivedDataCache/*
+Intermediate/*
+Plugins/Minesweeper/Binaries/*
+Plugins/Minesweeper/Intermediate/*
+Saved/*
+*.sln
