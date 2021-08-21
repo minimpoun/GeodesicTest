@@ -1,7 +1,13 @@
 #include "MinesweeperSlate.h"
 
+#include "MinesweeperTypes.h"
+#include "SlateOptMacros.h"
+
+#include "Framework/Notifications/NotificationManager.h"
+
 #include "Internationalization/BreakIterator.h"
 #include "Widgets/Layout/SUniformGridPanel.h"
+#include "Widgets/Notifications/SNotificationList.h"
 
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 #define LOCTEXT_NAMESPACE "FMinesweeperModule"
@@ -45,6 +51,28 @@ void SMinesweeperTabContent::Construct(const FArguments& InArgs)
 				]
 				+ NEW_HSLOT
 				[
+					SNew(SSpacer)
+					.Size(FVector2D(1.f, 0.f))
+				]
+				+ NEW_HSLOT
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("NumBombText", "Number of Bombs"))
+				]
+				+ NEW_HSLOT
+				[
+					SNew(SEditableTextBox)
+					.MinDesiredWidth(100)
+                    .HintText(LOCTEXT("NumBombHintEditableText", "5"))
+                    .Text(LOCTEXT("NumBombText", "5"))
+                    .ToolTipText(LOCTEXT("NumBombTooltip", "Min: 1 -- Max: (GridSize^2) - 2"))
+                    .OnTextChanged_Lambda([this](const FText& InText)
+                    {
+                    	NumBombs = FCString::Atoi(*InText.ToString());
+                    })
+				]
+				+ NEW_HSLOT
+				[
 					SNew(SButton)
 				.Text(LOCTEXT("GenButtonText", "Generate New Grid"))
 				.OnClicked(this, &ThisClass::GenerateNewGrid)
@@ -81,18 +109,23 @@ void SMinesweeperTabContent::Construct(const FArguments& InArgs)
 FReply SMinesweeperTabContent::GenerateNewGrid()
 {
 	MinesweeperGrid->ClearChildren();
+	GridButtons.Empty();
 	
-	for (uint8 i{0}; i < GridSize; i++)
+	for (auto i{0}; i < GridSize; i++)
 	{
-		for (uint8 j{0}; j < GridSize; j++)
+		for (auto j{0}; j < GridSize; j++)
 		{
-			MinesweeperGrid->AddSlot(i, j)
+			GridButtons.Add(&*MinesweeperGrid->AddSlot(i, j)
 			[
-				SNew(SButton)
-			];
+				SNew(SMinesweeperGridSlot)
+				.AddMetaData<FMinesweeperMetaData>(FMinesweeperMetaData(FVector2D(i, j), false))
+				.OnGameOver_Raw(this, &ThisClass::GenerateNewGrid)				
+			].GetWidget());
 		}
 	}
 
+	FSlateNotificationManager::Get().AddNotification(FNotificationInfo(LOCTEXT("GameStartNotification", "New game started, good luck!")));
+	
 	return FReply::Handled();
 }
 
