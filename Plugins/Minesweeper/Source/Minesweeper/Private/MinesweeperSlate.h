@@ -14,11 +14,15 @@ class SMinesweeperTabContent final : public SCompoundWidget
 
 private:
 
+	[[nodiscard]] auto GetGridHeight() const -> int32;
+
 	[[nodiscard]] auto ConstructSingleGridSlot(const int32& Column,
 	                                           const int32& Row) -> TSharedRef<class SMinesweeperGridSlot>;
 	[[nodiscard]] auto GenerateNewGrid() -> FReply;
 
+	uint8 bDisableGridRatio:1;
 	TSharedPtr<class SUniformGridPanel> MinesweeperGrid;
-	uint8 GridSize = 5, NumBombs = 5;
-	uint8 BombsRemaining = NumBombs;
+	int32 GridSize = 15, NumBombs = 30;
+	int32 GridRows = GridSize;
+	int32 BombsRemaining = NumBombs;
 };

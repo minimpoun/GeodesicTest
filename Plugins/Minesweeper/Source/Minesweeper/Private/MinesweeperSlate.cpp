@@ -14,8 +14,7 @@ BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 auto SMinesweeperTabContent::Construct(const FArguments& InArgs) -> void
 {
-	const FText InstructionText = LOCTEXT("InstructText", "The purpose of the game is to open all the cells of the board which do not contain a bomb. You lose if you set off a bomb cell. Every non-bomb cell you open will tell you the total number of bombs in the eight neighboring cells. Once you are sure that a cell contains a bomb, you can right-click to put a flag on it as a reminder.");
-	
+	bDisableGridRatio = false;
 #define NEW_HSLOT\
  SHorizontalBox::Slot()\
 .Padding(1.f)\
@@ -24,86 +23,115 @@ auto SMinesweeperTabContent::Construct(const FArguments& InArgs) -> void
 	
 	ChildSlot
 	[
-		SNew(SHorizontalBox)
-		+ NEW_HSLOT
+		SNew(SVerticalBox)
+		+ SVerticalBox::Slot()
+		.AutoHeight()
 		[
-			SNew(SVerticalBox)
-			+ SVerticalBox::Slot()
-			.AutoHeight()
+			SNew(SHorizontalBox)
+			+ NEW_HSLOT
 			[
-				SNew(SHorizontalBox)
-				+ NEW_HSLOT
-				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("GridText", "Grid Size"))
-				]
-				+ NEW_HSLOT
-				[
-					SNew(SEditableTextBox)
-					.MinDesiredWidth(100)
-					.HintText(LOCTEXT("GridHintEditableText", "Enter Grid Size"))
-					.Text(LOCTEXT("GridSizeText", "5"))
-					.ToolTipText(LOCTEXT("GridSizeTooltip", "Min Size: 2 -- Max Size: 20"))
-					.OnTextChanged_Lambda([this](const FText& InText)
-					{
-						GridSize = FCString::Atoi(*InText.ToString());
-					})
-				]
-				+ NEW_HSLOT
-				[
-					SNew(SSpacer)
-					.Size(FVector2D(2.f, 0.f))
-				]
-				+ NEW_HSLOT
-				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("BombText", "Number of Bombs"))
-				]
-				+ NEW_HSLOT
-				[
-					SNew(SEditableTextBox)
-					.MinDesiredWidth(100)
-					.Text(LOCTEXT("NumBombText", "5"))
-                    .HintText(LOCTEXT("NumBombHintEditableText", "Enter Number of Bombs"))
-                    .ToolTipText(LOCTEXT("NumBombTooltip", "Min: 1 -- Max: (GridSize^2) - 2"))
-                    .OnTextChanged_Lambda([this](const FText& InText)
-                    {
-                    	NumBombs = FCString::Atoi(*InText.ToString());
-                    })
-				]
-				+ NEW_HSLOT
-				[
-					SNew(SButton)
-					.Text(LOCTEXT("GenButtonText", "Generate New Grid"))
-					.OnClicked(this, &ThisClass::GenerateNewGrid)
-				]
+				SNew(STextBlock)
+				.Text(LOCTEXT("GridText", "Grid Size"))
+				.Margin(FMargin(0.f, 0.f, 1.f, 0.))
 			]
-			+ SVerticalBox::Slot()
-			  .VAlign(VAlign_Fill)
-			  .Padding(FMargin(1.f))
-			  .FillHeight(1.f)
+			+ NEW_HSLOT
 			[
-				SAssignNew(MinesweeperGrid, SUniformGridPanel)
-				.SlotPadding(1.5f)
+				SNew(SEditableTextBox)
+				.MinDesiredWidth(100)
+				.HintText(LOCTEXT("GridHintEditableText", "Enter Grid Size"))
+				.Text(LOCTEXT("GridSizeText", "15"))
+				.OnTextChanged_Lambda([this](const FText& InText)
+				 {
+					GridSize = FCString::Atoi(*InText.ToString());
+				 })
+				 .Padding(FMargin(0.f, 0.f, 1.f, 0.f))
+			]
+			+ NEW_HSLOT
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("RowText", "Grid Height"))
+				.Visibility_Lambda([this]()
+                {
+					return bDisableGridRatio ? EVisibility::Visible : EVisibility::Collapsed;
+                })
+                .Margin(FMargin(0.f, 0.f, 1.f, 0.))
+			]
+			+ NEW_HSLOT
+			[
+				SNew(SEditableTextBox)
+				.MinDesiredWidth(100)
+				.HintText(LOCTEXT("RowHintText", "Enter Grid Height"))
+				.Text(LOCTEXT("RowEditableText", "15"))
+				.Visibility_Lambda([this]()
+                 {
+					return bDisableGridRatio ? EVisibility::Visible : EVisibility::Collapsed;
+                 })
+				.OnTextChanged_Lambda([this](const FText& InText)
+                 {
+					GridRows = FCString::Atoi(*InText.ToString());
+                 })
+                 .Padding(FMargin(0.f, 0.f, 1.f, 0.f))
+			]
+			+ NEW_HSLOT
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("GridRatioButton", "Maintain Grid Ratio"))
+				.Margin(FMargin(0.f, 0.f, 1.f, 0.))
+			]
+			+ NEW_HSLOT
+			[
+				SNew(SCheckBox)
+				.IsChecked(true)
+				.OnCheckStateChanged_Lambda([this](ECheckBoxState NewState)
+                {
+ 	               bDisableGridRatio = NewState != ECheckBoxState::Checked;
+                })
+			]
+			+ NEW_HSLOT
+			[
+				SNew(SSpacer)
+				.Size(FVector2D(2.f, 0.f))
+			]
+			+ NEW_HSLOT
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("BombText", "Number of Bombs"))
+				.Margin(FMargin(0.f, 0.f, 1.f, 0.))
+			]
+			+ NEW_HSLOT
+			[
+				SNew(SEditableTextBox)
+				.MinDesiredWidth(100)
+				.Text(LOCTEXT("NumBombText", "30"))
+                .HintText(LOCTEXT("NumBombHintEditableText", "Enter Number of Bombs"))
+                .OnTextChanged_Lambda([this](const FText& InText)
+                {
+					NumBombs = FCString::Atoi(*InText.ToString());
+                })
+			]
+			+ NEW_HSLOT
+			[
+				SNew(SButton)
+				.Text(LOCTEXT("GenButtonText", "Generate New Grid"))
+				.OnClicked(this, &ThisClass::GenerateNewGrid)
 			]
 		]
-		+ SHorizontalBox::Slot()
-		  .Padding(1.f)
-		  .AutoWidth()
-		  .VAlign(VAlign_Center)
-		  .HAlign(HAlign_Right)
+		+ SVerticalBox::Slot()
+		  .VAlign(VAlign_Fill)
+		  .Padding(FMargin(1.f))
+		  .FillHeight(1.f)
 		[
-			SNew(STextBlock)
-			.Text(InstructionText)
-			.WrappingPolicy(ETextWrappingPolicy::DefaultWrapping)
-			.WrapTextAt(512.0f)
-			.Justification(ETextJustify::Left)
-			.AutoWrapText(true)
-			.LineBreakPolicy(FBreakIterator::CreateWordBreakIterator())
+			SAssignNew(MinesweeperGrid, SUniformGridPanel)
+			.SlotPadding(1.5f)
 		]
 	];
 
 #undef NEW_HSLOT
+}
+
+auto SMinesweeperTabContent::GetGridHeight() const -> int32
+{
+	return bDisableGridRatio ? GridRows : GridSize;
 }
 
 auto SMinesweeperTabContent::ConstructSingleGridSlot(const int32& Column,
@@ -113,7 +141,8 @@ auto SMinesweeperTabContent::ConstructSingleGridSlot(const int32& Column,
 	GUID++;
 	return SNew(SMinesweeperGridSlot)
 		.Tag(*FString::FromInt(GUID))
-		.AddMetaData<FMinesweeperMetaData>(FMinesweeperMetaData(FGridPositionData(Column, Row, GridSize)))
+		.AddMetaData<FMinesweeperMetaData>(
+			FMinesweeperMetaData(FGridPositionData(Column, Row, GridSize, GetGridHeight(), bDisableGridRatio)))
 		.OnGameOver_Raw(this, &ThisClass::GenerateNewGrid);
 }
 
@@ -122,23 +151,23 @@ auto SMinesweeperTabContent::GenerateNewGrid() -> FReply
 	MinesweeperGrid->ClearChildren();
 	BombsRemaining = NumBombs;
 	
-	for (auto i{0}; i < GridSize; i++)
+	for (auto Column{0}; Column < GridSize; Column++)
 	{
-		for (auto j{0}; j < GridSize; j++)
+		for (auto Row{0}; Row < GetGridHeight(); Row++)
 		{
-			MinesweeperGrid->AddSlot(i, j)
+			MinesweeperGrid->AddSlot(Column, Row)
 			[
-				ConstructSingleGridSlot(i, j)
+				ConstructSingleGridSlot(Column, Row)
 			];
 		}
 	}
 	
 	volatile int32 GridIndex = 0;
-	while (GridIndex < GridSize*GridSize && BombsRemaining > 0)
+	while (GridIndex < GridSize*GetGridHeight() && BombsRemaining > 0)
 	{
-		const int32 Random = FMath::Rand() % (GridSize*GridSize);
+		const int32 Random = FMath::Rand() % (GridSize*GetGridHeight());
 		const int32 RandCol = Random / GridSize;
-		const int32 RandRow = Random % GridSize;
+		const int32 RandRow = Random % GetGridHeight();
 		const int32 FoundIndex = GridSize * RandCol + RandRow;
 	
 		StaticCastSharedRef<SMinesweeperGridSlot>(MinesweeperGrid->GetChildren()->GetChildAt(FoundIndex))->SetBombSlot();

@@ -51,19 +51,23 @@ auto SMinesweeperGridSlot::Construct(const FArguments& InArgs) -> void
 			SAssignNew(ButtonText, STextBlock)
 			.Text_Lambda([this]
 			{
-				return bIsBomb ? LOCTEXT("Bomb", "B") : FText::GetEmpty();
-				/*FFormatNamedArguments Args;
+				FFormatNamedArguments Args;
 				Args.Add(TEXT("Flag"), FText::FromString(bIsFlagged ? TEXT("F") : TEXT("")));
-				return FText::Format(LOCTEXT("FlagText", "{Flag}"), Args);*/
+				return FText::Format(LOCTEXT("FlagText", "{Flag}"), Args);
 			})
 		]
 	];
 }
 
-auto SMinesweeperGridSlot::ExpandSlot() const -> void
+auto SMinesweeperGridSlot::ExpandSlot() -> void
 {
-	ButtonText->SetText(FText::FromString(FString::FromInt(GetNumAdjacentBombs())));
-	
+	const uint8 SlotValue = GetAdjBombCount();
+	if (SlotValue == 0)
+	{
+		ExpandAdjSlots();
+		return;
+	}
+	ButtonText->SetText(FText::FromString(FString::FromInt(SlotValue)));
 }
 
 auto SMinesweeperGridSlot::SetBombSlot() -> void
@@ -105,76 +109,64 @@ auto SMinesweeperGridSlot::OnSlotClicked() -> FReply
 	return FReply::Handled();
 }
 
-auto SMinesweeperGridSlot::GetNumAdjacentBombs() const -> uint8
+auto SMinesweeperGridSlot::GetSlotIndex(const EPositionCheck& InPosition) const -> FGridPosition_Internal
+{
+	const int32 Index = GridPosition.GetGridHeight() * GridPosition.Column + GridPosition.Row;
+	switch (InPosition)
+	{
+		case UP: return FGridPosition_Internal(
+				Index - GridPosition.GetGridHeight() - 1,
+				Index + GridPosition.GetGridHeight() - 1,
+				Index - 1);
+		case DOWN: return FGridPosition_Internal(
+				Index - GridPosition.GetGridHeight() + 1,
+				Index + GridPosition.GetGridHeight() + 1,
+				Index + 1);
+		case LEFT: return FGridPosition_Internal(
+				0,
+				0,
+				Index - GridPosition.GetGridHeight());
+		case RIGHT: return FGridPosition_Internal(
+				0,
+				0,
+				Index + GridPosition.GetGridHeight());
+		default: return {0, 0, 0};
+	}
+}
+
+auto SMinesweeperGridSlot::GetAdjBombCount() const -> uint8
 {
 	if (auto Slots = StaticCastSharedPtr<SUniformGridPanel>(GetParentWidget())->GetChildren()) [[likely]]
 	{
-		enum EPositionCheck : uint8
-		{
-			UP, DOWN, LEFT, RIGHT
-		};
-		
 		[[nodiscard]] const auto CheckSlot = [this, &Slots](EPositionCheck InPosition)->uint8
 		{
-			// Used to reduce code coping
-			struct FGridPosition_Internal
+			if (InPosition == UP && GridPosition.Row == 0) return 0;
+			if (InPosition == DOWN && GridPosition.Row == GridPosition.GridSize - 1) return 0;
+			if (InPosition == LEFT && GridPosition.Column == 0) return 0;
+			if (InPosition == RIGHT && GridPosition.Column == GridPosition.GridSize - 1) return 0;
+
+			[[nodiscard]] const auto IsValidIndex = [this, &Slots](const int32& Index)->bool
 			{
-				FGridPosition_Internal() = delete;
-				FGridPosition_Internal(const uint8& InOffsetLeft, const uint8& InOffsetRight, const uint8& InOffset)
-					: OffsetLeft(InOffsetLeft)
-					, OffsetRight(InOffsetRight)
-					, Offset(InOffset)
-				{}
-				
-				uint8 OffsetLeft, OffsetRight, Offset;
-			};
-			
-			[[nodiscard]] const auto GetSlotIndex = [this, &InPosition]()->FGridPosition_Internal
-			{
-				switch (InPosition)
-				{
-					case UP: return FGridPosition_Internal(
-							GridPosition.GridSize * GridPosition.Column - 1 + GridPosition.Row + 1,
-							GridPosition.GridSize * GridPosition.Column + 1 + GridPosition.Row + 1,
-							GridPosition.GridSize * GridPosition.Column + GridPosition.Row + 1);
-					case DOWN: return FGridPosition_Internal(
-							GridPosition.GridSize * GridPosition.Column - 1 + GridPosition.Row - 1,
-							GridPosition.GridSize * GridPosition.Column + 1 + GridPosition.Row - 1,
-							GridPosition.GridSize * GridPosition.Column + GridPosition.Row - 1);
-					case LEFT: return FGridPosition_Internal(
-							GridPosition.GridSize * GridPosition.Column - 1 + GridPosition.Row - 1,
-							GridPosition.GridSize * GridPosition.Column - 1 + GridPosition.Row + 1,
-							GridPosition.GridSize * GridPosition.Column - 1 + GridPosition.Row);
-					case RIGHT: return FGridPosition_Internal(
-							GridPosition.GridSize * GridPosition.Column + 1 + GridPosition.Row - 1,
-							GridPosition.GridSize * GridPosition.Column + 1 + GridPosition.Row + 1,
-							GridPosition.GridSize * GridPosition.Column + 1 + GridPosition.Row);
-					default: return {0, 0, 0};
-				}
+				return (GridPosition.GridSize*GridPosition.GetGridHeight()) > Index && Index > 0;
 			};
 
-			[[nodiscard]] const auto IsValidIndex = [this, &Slots](const uint8& Index)->bool
-			{
-				return (GridPosition.GridSize*GridPosition.GridSize) > Index && Index > 0;
-			};
-
-			[[nodiscard]] const auto GetSlotRef = [&Slots](const uint8& Index)->TSharedRef<SMinesweeperGridSlot>
+			[[nodiscard]] const auto GetSlotRef = [&Slots](const int32& Index)->TSharedRef<SMinesweeperGridSlot>
 			{
 				return StaticCastSharedRef<SMinesweeperGridSlot>(Slots->GetChildAt(Index));
 			};
-
+			
 			uint8 Count = 0;
-			if (IsValidIndex(GetSlotIndex().Offset) && GetSlotRef(GetSlotIndex().Offset)->IsBombSlot())
+			if (IsValidIndex(GetSlotIndex(InPosition).Offset) && GetSlotRef(GetSlotIndex(InPosition).Offset)->IsBombSlot())
 			{
 				Count++;
 			}
 
-			if (IsValidIndex(GetSlotIndex().OffsetLeft) && GetSlotRef(GetSlotIndex().OffsetLeft)->IsBombSlot())
+			if (IsValidIndex(GetSlotIndex(InPosition).OffsetLeft) && GetSlotRef(GetSlotIndex(InPosition).OffsetLeft)->IsBombSlot() && InPosition != LEFT && InPosition != RIGHT)
 			{
 				Count++;
 			}
 
-			if (IsValidIndex(GetSlotIndex().OffsetRight) && GetSlotRef(GetSlotIndex().OffsetRight)->IsBombSlot())
+			if (IsValidIndex(GetSlotIndex(InPosition).OffsetRight) && GetSlotRef(GetSlotIndex(InPosition).OffsetRight)->IsBombSlot() && InPosition != LEFT && InPosition != RIGHT)
 			{
 				Count++;
 			}
@@ -187,4 +179,60 @@ auto SMinesweeperGridSlot::GetNumAdjacentBombs() const -> uint8
 
 	return 0;
 }
+
+auto SMinesweeperGridSlot::ExpandAdjSlots() -> void
+{
+	if (bIsBomb || bIsExpanded) return;
+	bIsExpanded = true;
+	
+	if (auto Slots = StaticCastSharedPtr<SUniformGridPanel>(GetParentWidget())->GetChildren())	[[likely]]
+	{
+		[[nodiscard]] const auto IsValidIndex = [this](const int32& Index)-> bool
+		{
+			return (GridPosition.GridSize * GridPosition.GetGridHeight()) > Index && Index > 0;
+		};
+
+		[[nodiscard]] const auto GetSlotRef = [&Slots](const int32& Index)-> TSharedRef<SMinesweeperGridSlot>
+		{
+			return StaticCastSharedRef<SMinesweeperGridSlot>(Slots->GetChildAt(Index));
+		};
+		
+		if (GridPosition.Row != 0)
+		{
+			if (IsValidIndex(GetSlotIndex(UP).Offset) && !GetSlotRef(GetSlotIndex(UP).Offset)->IsBombSlot())
+			{
+				GetSlotRef(GetSlotIndex(UP).Offset)->ExpandSlot();
+			}
+
+			if (IsValidIndex(GetSlotIndex(UP).OffsetLeft) && !GetSlotRef(GetSlotIndex(UP).OffsetLeft)->IsBombSlot())
+			{
+				GetSlotRef(GetSlotIndex(UP).OffsetLeft)->ExpandSlot();
+			}
+
+			if (IsValidIndex(GetSlotIndex(UP).OffsetRight) && !GetSlotRef(GetSlotIndex(UP).OffsetRight)->IsBombSlot())
+			{
+				GetSlotRef(GetSlotIndex(UP).OffsetRight)->ExpandSlot();
+			}
+		}
+
+		if (GridPosition.Row != GridPosition.GridSize - 1)
+		{
+			if (IsValidIndex(GetSlotIndex(DOWN).Offset) && !GetSlotRef(GetSlotIndex(DOWN).Offset)->IsBombSlot())
+			{
+				GetSlotRef(GetSlotIndex(DOWN).Offset)->ExpandSlot();
+			}
+
+			if (IsValidIndex(GetSlotIndex(DOWN).OffsetLeft) && !GetSlotRef(GetSlotIndex(DOWN).OffsetLeft)->IsBombSlot())
+			{
+				GetSlotRef(GetSlotIndex(DOWN).OffsetLeft)->ExpandSlot();
+			}
+
+			if (IsValidIndex(GetSlotIndex(DOWN).OffsetRight) && !GetSlotRef(GetSlotIndex(DOWN).OffsetRight)->IsBombSlot())
+			{
+				GetSlotRef(GetSlotIndex(DOWN).OffsetRight)->ExpandSlot();
+			}
+		}	
+	}
+}
+
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
