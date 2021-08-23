@@ -1,4 +1,5 @@
 #include "MinesweeperTypes.h"
+
 #include "SlateOptMacros.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Layout/SUniformGridPanel.h"
@@ -49,6 +50,10 @@ auto SMinesweeperGridSlot::Construct(const FArguments& InArgs) -> void
 		})
 		[
 			SAssignNew(ButtonText, STextBlock)
+			.Justification(ETextJustify::Center)
+			.ShadowOffset(1.f)
+			.HighlightColor(FColor::Red)
+			.Font(FCoreStyle::GetDefaultFontStyle("Bold", 24))
 			.Text_Lambda([this]
 			{
 				FFormatNamedArguments Args;
@@ -68,6 +73,7 @@ auto SMinesweeperGridSlot::ExpandSlot() -> void
 		return;
 	}
 	ButtonText->SetText(FText::FromString(FString::FromInt(SlotValue)));
+	ButtonText->SetColorAndOpacity(GetNumberColor(SlotValue));
 }
 
 auto SMinesweeperGridSlot::SetBombSlot() -> void
@@ -107,6 +113,16 @@ auto SMinesweeperGridSlot::OnSlotClicked() -> FReply
 
 	ExpandSlot();
 	return FReply::Handled();
+}
+
+auto SMinesweeperGridSlot::GetNumberColor(const int32& InNumber) -> FLinearColor
+{
+	switch (InNumber)
+	{
+		case 1: return FColor::Green;
+		case 2: return FColor::Orange;
+		default: return FColor::Red;
+	}
 }
 
 auto SMinesweeperGridSlot::GetSlotIndex(const EPositionCheck& InPosition) const -> FGridPosition_Internal

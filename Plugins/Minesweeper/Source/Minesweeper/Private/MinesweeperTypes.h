@@ -111,10 +111,10 @@ private:
 
 		int32 OffsetLeft, OffsetRight, Offset;
 	};
-
-	[[nodiscard]] auto GetSlotIndex(const EPositionCheck& InPosition) const -> FGridPosition_Internal;
 	
-	auto GetAdjBombCount() const -> uint8;
+	[[nodiscard]] static auto GetNumberColor(const int32& InNumber) -> FLinearColor;
+	[[nodiscard]] auto GetSlotIndex(const EPositionCheck& InPosition) const -> FGridPosition_Internal;
+	[[nodiscard]] auto GetAdjBombCount() const -> uint8;
 	auto ExpandAdjSlots() -> void;
 
 	TSharedPtr<STextBlock> ButtonText;
