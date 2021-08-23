@@ -165,12 +165,31 @@ auto SMinesweeperTabContent::GenerateNewGrid() -> FReply
 	volatile int32 GridIndex = 0;
 	while (GridIndex < GridSize*GetGridHeight() && BombsRemaining > 0)
 	{
-		const int32 Random = FMath::Rand() % (GridSize*GetGridHeight());
-		const int32 RandCol = Random / GridSize;
-		const int32 RandRow = Random % GetGridHeight();
-		const int32 FoundIndex = GridSize * RandCol + RandRow;
-	
-		StaticCastSharedRef<SMinesweeperGridSlot>(MinesweeperGrid->GetChildren()->GetChildAt(FoundIndex))->SetBombSlot();
+		const auto IsValidIndex = [this](const int32& Index)->bool
+		{
+			return Index > 0 && Index < GridSize*GetGridHeight();
+		};
+
+		const auto GenerateRandIndex = [this, IsValidIndex]()->int32
+		{
+			const auto GenerateRandIndex_Impl = [this]()->int32
+			{
+				const int32 Random = FMath::Rand() % (GridSize*GetGridHeight());
+				const int32 RandCol = Random / GridSize;
+				const int32 RandRow = Random % GetGridHeight();
+				return GridSize * RandRow + RandCol;
+			};
+
+			int32 FoundIndex = -1;
+			while (!IsValidIndex(FoundIndex))
+			{
+				FoundIndex = GenerateRandIndex_Impl();
+			}
+
+			return FoundIndex;
+		};
+
+		StaticCastSharedRef<SMinesweeperGridSlot>(MinesweeperGrid->GetChildren()->GetChildAt(GenerateRandIndex()))->SetBombSlot();
 
 		BombsRemaining--;
 		GridIndex++;
