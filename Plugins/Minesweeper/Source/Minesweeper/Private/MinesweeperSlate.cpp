@@ -12,7 +12,7 @@
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 #define LOCTEXT_NAMESPACE "FMinesweeperModule"
 
-void SMinesweeperTabContent::Construct(const FArguments& InArgs)
+auto SMinesweeperTabContent::Construct(const FArguments& InArgs) -> void
 {
 	const FText InstructionText = LOCTEXT("InstructText", "The purpose of the game is to open all the cells of the board which do not contain a bomb. You lose if you set off a bomb cell. Every non-bomb cell you open will tell you the total number of bombs in the eight neighboring cells. Once you are sure that a cell contains a bomb, you can right-click to put a flag on it as a reminder.");
 	
@@ -52,19 +52,19 @@ void SMinesweeperTabContent::Construct(const FArguments& InArgs)
 				+ NEW_HSLOT
 				[
 					SNew(SSpacer)
-					.Size(FVector2D(1.f, 0.f))
+					.Size(FVector2D(2.f, 0.f))
 				]
 				+ NEW_HSLOT
 				[
 					SNew(STextBlock)
-					.Text(LOCTEXT("NumBombText", "Number of Bombs"))
+					.Text(LOCTEXT("BombText", "Number of Bombs"))
 				]
 				+ NEW_HSLOT
 				[
 					SNew(SEditableTextBox)
 					.MinDesiredWidth(100)
-                    .HintText(LOCTEXT("NumBombHintEditableText", "5"))
-                    .Text(LOCTEXT("NumBombText", "5"))
+					.Text(LOCTEXT("NumBombText", "5"))
+                    .HintText(LOCTEXT("NumBombHintEditableText", "Enter Number of Bombs"))
                     .ToolTipText(LOCTEXT("NumBombTooltip", "Min: 1 -- Max: (GridSize^2) - 2"))
                     .OnTextChanged_Lambda([this](const FText& InText)
                     {
@@ -74,8 +74,8 @@ void SMinesweeperTabContent::Construct(const FArguments& InArgs)
 				+ NEW_HSLOT
 				[
 					SNew(SButton)
-				.Text(LOCTEXT("GenButtonText", "Generate New Grid"))
-				.OnClicked(this, &ThisClass::GenerateNewGrid)
+					.Text(LOCTEXT("GenButtonText", "Generate New Grid"))
+					.OnClicked(this, &ThisClass::GenerateNewGrid)
 				]
 			]
 			+ SVerticalBox::Slot()
@@ -84,7 +84,7 @@ void SMinesweeperTabContent::Construct(const FArguments& InArgs)
 			  .FillHeight(1.f)
 			[
 				SAssignNew(MinesweeperGrid, SUniformGridPanel)
-				.SlotPadding(FMargin(1.f))
+				.SlotPadding(1.5f)
 			]
 		]
 		+ SHorizontalBox::Slot()
@@ -106,22 +106,45 @@ void SMinesweeperTabContent::Construct(const FArguments& InArgs)
 #undef NEW_HSLOT
 }
 
-FReply SMinesweeperTabContent::GenerateNewGrid()
+auto SMinesweeperTabContent::ConstructSingleGridSlot(const int32& Column,
+                                                     const int32& Row) -> TSharedRef<SMinesweeperGridSlot>
+{
+	static int32 GUID = 0;
+	GUID++;
+	return SNew(SMinesweeperGridSlot)
+		.Tag(*FString::FromInt(GUID))
+		.AddMetaData<FMinesweeperMetaData>(FMinesweeperMetaData(FGridPositionData(Column, Row, GridSize)))
+		.OnGameOver_Raw(this, &ThisClass::GenerateNewGrid);
+}
+
+auto SMinesweeperTabContent::GenerateNewGrid() -> FReply
 {
 	MinesweeperGrid->ClearChildren();
-	GridButtons.Empty();
+	BombsRemaining = NumBombs;
 	
 	for (auto i{0}; i < GridSize; i++)
 	{
 		for (auto j{0}; j < GridSize; j++)
 		{
-			GridButtons.Add(&*MinesweeperGrid->AddSlot(i, j)
+			MinesweeperGrid->AddSlot(i, j)
 			[
-				SNew(SMinesweeperGridSlot)
-				.AddMetaData<FMinesweeperMetaData>(FMinesweeperMetaData(FVector2D(i, j), false))
-				.OnGameOver_Raw(this, &ThisClass::GenerateNewGrid)				
-			].GetWidget());
+				ConstructSingleGridSlot(i, j)
+			];
 		}
+	}
+	
+	volatile int32 GridIndex = 0;
+	while (GridIndex < GridSize*GridSize && BombsRemaining > 0)
+	{
+		const int32 Random = FMath::Rand() % (GridSize*GridSize);
+		const int32 RandCol = Random / GridSize;
+		const int32 RandRow = Random % GridSize;
+		const int32 FoundIndex = GridSize * RandCol + RandRow;
+	
+		StaticCastSharedRef<SMinesweeperGridSlot>(MinesweeperGrid->GetChildren()->GetChildAt(FoundIndex))->SetBombSlot();
+
+		BombsRemaining--;
+		GridIndex++;
 	}
 
 	FSlateNotificationManager::Get().AddNotification(FNotificationInfo(LOCTEXT("GameStartNotification", "New game started, good luck!")));

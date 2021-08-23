@@ -10,13 +10,15 @@ class SMinesweeperTabContent final : public SCompoundWidget
 	SLATE_BEGIN_ARGS(SMinesweeperTabContent) {}
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs);
+	auto Construct(const FArguments& InArgs) -> void;
 
 private:
 
-	FReply GenerateNewGrid();
+	[[nodiscard]] auto ConstructSingleGridSlot(const int32& Column,
+	                                           const int32& Row) -> TSharedRef<class SMinesweeperGridSlot>;
+	[[nodiscard]] auto GenerateNewGrid() -> FReply;
 
 	TSharedPtr<class SUniformGridPanel> MinesweeperGrid;
-	TSet<class SWidget*> GridButtons;
 	uint8 GridSize = 5, NumBombs = 5;
+	uint8 BombsRemaining = NumBombs;
 };
