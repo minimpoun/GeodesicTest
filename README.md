@@ -1,9 +1,6 @@
-# GeodesicTest
+# Minesweeper in the UE4 Editor
 
-All feature requirements met, including some extras like:
-- [x] flagging
-- [x] the option to force grid aspect ratio
-- [x] restarting the game if you hit a bomb
+Launcher version of UE4.27
 
 ## NOTE
 There are some optimzations in this project that require the '/std:c++latest' compiler option.
